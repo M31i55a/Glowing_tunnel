@@ -9,95 +9,93 @@ const w = window.innerWidth;
 const h = window.innerHeight;
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x000000, 0.3);
+// Dark background to let the green dots pop
+scene.background = new THREE.Color(0x000205); 
+scene.fog = new THREE.FogExp2(0x000000, 0.25);
 
 const camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 1000);
-camera.position.z = 5;
-
-const renderer = new THREE.WebGLRenderer();
+const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(w, h);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-
 document.body.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.dampingFactor = 0.03;
 
-// post-processing
+// --- POST-PROCESSING ---
 const renderScene = new RenderPass(scene, camera);
+// Threshold is key: 
+// Increasing it ensures only the brightest objects (green dots) glow.
 const bloomPass = new UnrealBloomPass(new THREE.Vector2(w, h), 1.5, 0.4, 100);
-bloomPass.threshold = 0.002;
-bloomPass.strength = 3.5;
-bloomPass.radius = 0;
+bloomPass.threshold = 0.5; // High threshold ignores the dim purple lines
+bloomPass.strength = 2.5; 
+bloomPass.radius = 0.1; 
 
 const composer = new EffectComposer(renderer);
 composer.addPass(renderScene);
 composer.addPass(bloomPass);
 
-// create a line geometry from the spline
-const points = spline.getPoints(100);
-const geometry = new THREE.BufferGeometry().setFromPoints(points);
-const material = new THREE.LineBasicMaterial({ color: 0xaaaaff });
-const line = new THREE.Line(geometry, material);
-// scene.add(line);
-
-// create a tube geometry from the spline
+// --- TUBE GEOMETRY ---
 const tubeGeo = new THREE.TubeGeometry(spline, 222, 0.65, 16, true);
 
-// create edges geometry from the spline
-const edges = new THREE.EdgesGeometry(tubeGeo, 0.2);
-const lineMat = new THREE.LineBasicMaterial({ color: 0xdd99ff });
-const tubeLines = new THREE.LineSegments(edges, lineMat);
-scene.add(tubeLines);
-
-//fill the tube with a skyblue color
+// 1. THE FILL (Subtle Purple)
 const tubeMat = new THREE.MeshBasicMaterial({
-  color: 0x9911aa,
+  color: 0x220033, // Darker purple so it stays below bloom threshold
   side: THREE.BackSide,
   transparent: true,
-  opacity: 0.1
+  opacity: 0.4
 });
 const tubeMesh = new THREE.Mesh(tubeGeo, tubeMat);
 scene.add(tubeMesh);
 
+// 2. THE LINES (Dim Purple/Pink)
+const edges = new THREE.EdgesGeometry(tubeGeo, 0.2);
+const lineMat = new THREE.LineBasicMaterial({ 
+  color: 0xffffff, // Dim color so it doesn't glow
+  transparent: false, 
+  opacity: 0.2
+});
+const tubeLines = new THREE.LineSegments(edges, lineMat);
+scene.add(tubeLines);
+
+// 3. THE GLOWING DOTS (Green)
+// We use the same tubeGeo vertices for the points
+const pointsMat = new THREE.PointsMaterial({
+  color: 0x00ff88, // Bright Neon Green
+  size: 0.012,     // Small, sharp dots
+  transparent: true,
+  blending: THREE.AdditiveBlending
+});
+const tubePoints = new THREE.Points(tubeGeo, pointsMat);
+scene.add(tubePoints);
+
+// --- FLOATING BOXES ---
 const numBoxes = 55;
 const size = 0.075;
 const boxGeo = new THREE.BoxGeometry(size, size, size);
 for (let i = 0; i < numBoxes; i += 1) {
-  const boxMat = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
-    wireframe: true
-  });
-  const box = new THREE.Mesh(boxGeo, boxMat);
   const p = (i / numBoxes + Math.random() * 0.1) % 1;
   const pos = tubeGeo.parameters.path.getPointAt(p);
   pos.x += Math.random() - 0.4;
   pos.z += Math.random() - 0.4;
-  box.position.copy(pos);
-  const rote = new THREE.Vector3(
-    Math.random() * Math.PI,
-    Math.random() * Math.PI,
-    Math.random() * Math.PI
-  );
-  box.rotation.set(rote.x, rote.y, rote.z);
-  const edges = new THREE.EdgesGeometry(boxGeo, 0.2);
-  const color = new THREE.Color().setHSL(0.7 - p, 1, 0.5);
-  const lineMat = new THREE.LineBasicMaterial({ color });
-  const boxLines = new THREE.LineSegments(edges, lineMat);
+  
+  const boxEdges = new THREE.EdgesGeometry(boxGeo, 0.2);
+  // Using HSL to keep these in the green/cyan range
+  const color = new THREE.Color().setHSL(0.4, 1, 0.5); 
+  const boxLineMat = new THREE.LineBasicMaterial({ color });
+  const boxLines = new THREE.LineSegments(boxEdges, boxLineMat);
   boxLines.position.copy(pos);
-  boxLines.rotation.set(rote.x, rote.y, rote.z);
-  // scene.add(box);
+  boxLines.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
   scene.add(boxLines);
 }
 
 function updateCamera(t) {
   const time = t * 0.1;
-  const looptime = 10 * 1000;
+  const looptime = 15 * 1000;
   const p = (time % looptime) / looptime;
   const pos = tubeGeo.parameters.path.getPointAt(p);
-  const lookAt = tubeGeo.parameters.path.getPointAt((p + 0.03) % 1);
+  const lookAt = tubeGeo.parameters.path.getPointAt((p + 0.01) % 1);
   camera.position.copy(pos);
   camera.lookAt(lookAt);
 }
@@ -110,9 +108,9 @@ function animate(t = 0) {
 }
 animate();
 
-function handleWindowResize() {
+window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-}
-window.addEventListener('resize', handleWindowResize, false);
+  composer.setSize(window.innerWidth, window.innerHeight);
+});
