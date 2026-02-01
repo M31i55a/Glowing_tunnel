@@ -41,7 +41,7 @@ const tubeGeo = new THREE.TubeGeometry(spline, 222, 0.65, 16, true);
 
 // 1. THE FILL (Subtle Purple)
 const tubeMat = new THREE.MeshBasicMaterial({
-  color: 0x220033, // Darker purple so it stays below bloom threshold
+  color: 0x550066, // Darker purple so it stays below bloom threshold
   side: THREE.BackSide,
   transparent: true,
   opacity: 0.4
@@ -82,7 +82,7 @@ for (let i = 0; i < numBoxes; i += 1) {
   
   const boxEdges = new THREE.EdgesGeometry(boxGeo, 0.2);
   // Using HSL to keep these in the green/cyan range
-  const color = new THREE.Color().setHSL(0.4, 1, 0.5); 
+  const color = new THREE.Color().setHSL(1, 0.1, 1); 
   const boxLineMat = new THREE.LineBasicMaterial({ color });
   const boxLines = new THREE.LineSegments(boxEdges, boxLineMat);
   boxLines.position.copy(pos);
