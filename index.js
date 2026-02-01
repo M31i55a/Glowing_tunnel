@@ -48,9 +48,19 @@ const tubeGeo = new THREE.TubeGeometry(spline, 222, 0.65, 16, true);
 
 // create edges geometry from the spline
 const edges = new THREE.EdgesGeometry(tubeGeo, 0.2);
-const lineMat = new THREE.LineBasicMaterial({ color: 0xaa55ff });
+const lineMat = new THREE.LineBasicMaterial({ color: 0xdd99ff });
 const tubeLines = new THREE.LineSegments(edges, lineMat);
 scene.add(tubeLines);
+
+//fill the tube with a skyblue color
+const tubeMat = new THREE.MeshBasicMaterial({
+  color: 0x9911aa,
+  side: THREE.BackSide,
+  transparent: true,
+  opacity: 0.1
+});
+const tubeMesh = new THREE.Mesh(tubeGeo, tubeMat);
+scene.add(tubeMesh);
 
 const numBoxes = 55;
 const size = 0.075;
